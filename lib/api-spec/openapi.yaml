@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CivicAI – Smart Civic Issue Reporting Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: issues
+    description: Civic issue operations
+  - name: users
+    description: User operations
+  - name: authorities
+    description: Authority panel operations
+  - name: rewards
+    description: Gamification and rewards
+  - name: analytics
+    description: Dashboard analytics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +34,367 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── ISSUES ─────────────────────────────────────────────────────────────────
+  /issues:
+    get:
+      operationId: listIssues
+      tags: [issues]
+      summary: List all issues
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, resolved]
+        - name: issue_type
+          in: query
+          schema:
+            type: string
+            enum: [garbage, pothole, water_leakage, street_light, plastic, other]
+        - name: department
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
+    post:
+      operationId: createIssue
+      tags: [issues]
+      summary: Create a new issue report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIssueBody"
+      responses:
+        "201":
+          description: Issue created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "409":
+          description: Duplicate issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /issues/{id}:
+    get:
+      operationId: getIssue
+      tags: [issues]
+      summary: Get a single issue
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Issue details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateIssue
+      tags: [issues]
+      summary: Update issue status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateIssueBody"
+      responses:
+        "200":
+          description: Updated issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+
+  # ─── AI DETECTION ─────────────────────────────────────────────────────────
+  /issues/detect:
+    post:
+      operationId: detectIssue
+      tags: [issues]
+      summary: AI detection of issue from image data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DetectIssueBody"
+      responses:
+        "200":
+          description: Detection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetectionResult"
+
+  # ─── USERS ──────────────────────────────────────────────────────────────────
+  /users:
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/login:
+    post:
+      operationId: loginUser
+      tags: [users]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+
+  # ─── LEADERBOARD ────────────────────────────────────────────────────────────
+  /users/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [users]
+      summary: Get top users by points
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  # ─── REWARDS ────────────────────────────────────────────────────────────────
+  /rewards/{userId}:
+    get:
+      operationId: getUserRewards
+      tags: [rewards]
+      summary: Get user rewards and wallet
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User rewards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserRewards"
+
+  /rewards/withdraw:
+    post:
+      operationId: withdrawRewards
+      tags: [rewards]
+      summary: Request UPI withdrawal (mock)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawBody"
+      responses:
+        "200":
+          description: Withdrawal initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawResponse"
+
+  # ─── AUTHORITIES ─────────────────────────────────────────────────────────────
+  /authorities/login:
+    post:
+      operationId: authorityLogin
+      tags: [authorities]
+      summary: Authority panel login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorityLoginResponse"
+
+  /authorities/issues:
+    get:
+      operationId: getAuthorityIssues
+      tags: [authorities]
+      summary: Get issues assigned to authority's department
+      parameters:
+        - name: department
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, resolved]
+      responses:
+        "200":
+          description: Assigned issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
+
+  # ─── ANALYTICS / DASHBOARD ──────────────────────────────────────────────────
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/issues-by-type:
+    get:
+      operationId: getIssuesByType
+      tags: [analytics]
+      summary: Issue count grouped by type
+      responses:
+        "200":
+          description: Issues by type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IssueTypeCount"
+
+  /analytics/issues-over-time:
+    get:
+      operationId: getIssuesOverTime
+      tags: [analytics]
+      summary: Issues reported over time (last 30 days)
+      responses:
+        "200":
+          description: Issues timeline
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IssueTimePoint"
+
+  /analytics/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [analytics]
+      summary: Recent issue activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +402,347 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]
+
+    Issue:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        issueType:
+          type: string
+          enum: [garbage, pothole, water_leakage, street_light, plastic, other]
+        description:
+          type: string
+        imageUrl:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, resolved]
+        department:
+          type: string
+        confidenceScore:
+          type: number
+        resolvedImageUrl:
+          type: string
+          nullable: true
+        imageHash:
+          type: string
+        reporterName:
+          type: string
+          nullable: true
+        pointsAwarded:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - issueType
+        - latitude
+        - longitude
+        - status
+        - department
+        - imageHash
+        - pointsAwarded
+        - createdAt
+        - updatedAt
+
+    CreateIssueBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+        issueType:
+          type: string
+          enum: [garbage, pothole, water_leakage, street_light, plastic, other]
+        description:
+          type: string
+        imageUrl:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+        confidenceScore:
+          type: number
+        imageHash:
+          type: string
+      required: [issueType, latitude, longitude, address, imageHash]
+
+    UpdateIssueBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, in_progress, resolved]
+        resolvedImageUrl:
+          type: string
+
+    DetectIssueBody:
+      type: object
+      properties:
+        imageBase64:
+          type: string
+        imageUrl:
+          type: string
+      required: []
+
+    DetectionResult:
+      type: object
+      properties:
+        issueType:
+          type: string
+          enum: [garbage, pothole, water_leakage, street_light, plastic, other]
+        confidence:
+          type: number
+        department:
+          type: string
+        description:
+          type: string
+      required: [issueType, confidence, department, description]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, authority, admin]
+        points:
+          type: integer
+        badge:
+          type: string
+          nullable: true
+        totalReports:
+          type: integer
+        resolvedReports:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, role, points, totalReports, resolvedReports, createdAt]
+
+    CreateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+      required: [name, email, password]
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required: [user, token]
+
+    AuthorityLoginResponse:
+      type: object
+      properties:
+        authority:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+        department:
+          type: string
+      required: [authority, token, department]
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        points:
+          type: integer
+        badge:
+          type: string
+          nullable: true
+        totalReports:
+          type: integer
+        resolvedReports:
+          type: integer
+      required: [rank, userId, name, points, totalReports, resolvedReports]
+
+    UserRewards:
+      type: object
+      properties:
+        userId:
+          type: integer
+        totalPoints:
+          type: integer
+        cashValue:
+          type: number
+        pendingWithdrawal:
+          type: number
+        totalWithdrawn:
+          type: number
+        badge:
+          type: string
+          nullable: true
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RewardTransaction"
+      required: [userId, totalPoints, cashValue, pendingWithdrawal, totalWithdrawn, transactions]
+
+    RewardTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [earned, withdrawn]
+        points:
+          type: integer
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, points, description, createdAt]
+
+    WithdrawBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+        points:
+          type: integer
+        upiId:
+          type: string
+      required: [userId, points, upiId]
+
+    WithdrawResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transactionId:
+          type: string
+        amount:
+          type: number
+        message:
+          type: string
+      required: [success, transactionId, amount, message]
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalIssues:
+          type: integer
+        resolvedIssues:
+          type: integer
+        pendingIssues:
+          type: integer
+        inProgressIssues:
+          type: integer
+        totalUsers:
+          type: integer
+        totalPointsAwarded:
+          type: integer
+        resolutionRate:
+          type: number
+      required:
+        - totalIssues
+        - resolvedIssues
+        - pendingIssues
+        - inProgressIssues
+        - totalUsers
+        - totalPointsAwarded
+        - resolutionRate
+
+    IssueTypeCount:
+      type: object
+      properties:
+        issueType:
+          type: string
+        count:
+          type: integer
+        label:
+          type: string
+      required: [issueType, count, label]
+
+    IssueTimePoint:
+      type: object
+      properties:
+        date:
+          type: string
+        count:
+          type: integer
+      required: [date, count]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        issueId:
+          type: integer
+        issueType:
+          type: string
+        action:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+        reporterName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, issueId, issueType, action, address, status, createdAt]
