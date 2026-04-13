@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   useCreateIssue,
   useDetectIssue,
+  ApiError,
 } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -88,7 +89,7 @@ export default function Report() {
       setDetecting(true);
       setDetection(null);
       try {
-        const result = await detectIssue.mutateAsync({ data: { imageUrl: dataUrl.substring(0, 100) } });
+        const result = await detectIssue.mutateAsync({ data: { imageUrl: dataUrl } });
         setDetection(result as any);
         if ((result as any).description) {
           setDescription((result as any).description);
@@ -102,15 +103,36 @@ export default function Report() {
     reader.readAsDataURL(file);
   }, [detectIssue]);
 
+  const reverseGeocodeClient = async (lat: number, lng: number) => {
+    try {
+      const url = new URL("https://nominatim.openstreetmap.org/reverse");
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("lat", String(lat));
+      url.searchParams.set("lon", String(lng));
+      const res = await fetch(url.toString(), {
+        headers: {
+          "User-Agent": "CivicAI-Web/1.0 (local dev)",
+          Accept: "application/json",
+        },
+      });
+      if (!res.ok) return null;
+      const j = (await res.json()) as { display_name?: string };
+      return typeof j.display_name === "string" ? j.display_name : null;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchLocation = () => {
     setFetchingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLocation({ lat, lng });
+        const geo = await reverseGeocodeClient(lat, lng);
+        setAddress(geo ?? `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
         setFetchingLocation(false);
-        if (!address) {
-          setAddress(`Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)}`);
-        }
       },
       () => {
         setLocation({ lat: 28.6139, lng: 77.2090 });
@@ -133,6 +155,8 @@ export default function Report() {
           imageUrl: imagePreview ?? undefined,
           latitude: location.lat,
           longitude: location.lng,
+          reporterLatitude: location.lat,
+          reporterLongitude: location.lng,
           address: address || "India",
           confidenceScore: detection.confidence,
           imageHash,
@@ -140,9 +164,22 @@ export default function Report() {
       });
       setSubmitted(true);
       setTimeout(() => navigate("/dashboard"), 3000);
-    } catch (err: any) {
-      if (err?.status === 409) {
+    } catch (err: unknown) {
+      const status = err instanceof ApiError ? err.status : 0;
+      const code =
+        err instanceof ApiError && err.data && typeof err.data === "object"
+          ? (err.data as { error?: string }).error
+          : undefined;
+      if (status === 409) {
         alert("This issue has already been reported. Duplicate reports are not allowed.");
+      } else if (status === 400 && code === "location_mismatch") {
+        alert("Location mismatch detected");
+      } else if (status === 400 && code === "ai_validation_failed") {
+        alert("AI validation failed. Please upload a clearer photo of the issue.");
+      } else if (status === 400 && code === "exif_location_mismatch") {
+        alert("Photo GPS does not match your device location. Use the original camera photo.");
+      } else {
+        alert(err instanceof Error ? err.message : "Could not submit report.");
       }
     }
   };
@@ -163,7 +200,7 @@ export default function Report() {
         </p>
         {user && (
           <Badge className="bg-primary/10 text-primary border-primary/20 text-base px-4 py-2">
-            +100 points added to your wallet
+            Verification pending. Points are added after authority approval.
           </Badge>
         )}
         <p className="text-sm text-muted-foreground mt-4">Redirecting to dashboard...</p>

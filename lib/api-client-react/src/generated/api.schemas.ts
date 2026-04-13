@@ -5,6 +5,68 @@
  * CivicAI – Smart Civic Issue Reporting Platform API
  * OpenAPI spec version: 0.1.0
  */
+export interface RegisterUserBody {
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  phone?: string;
+}
+
+export interface VerifyOtpBody {
+  email: string;
+  /** @pattern ^\d{6}$ */
+  code: string;
+}
+
+export interface ResendOtpBody {
+  email: string;
+}
+
+export type CreateAuthorityAdminBodyDepartmentKey =
+  (typeof CreateAuthorityAdminBodyDepartmentKey)[keyof typeof CreateAuthorityAdminBodyDepartmentKey];
+
+export const CreateAuthorityAdminBodyDepartmentKey = {
+  sanitation: "sanitation",
+  electricity: "electricity",
+  pwd: "pwd",
+  water: "water",
+  recycling: "recycling",
+  municipality: "municipality",
+} as const;
+
+export interface CreateAuthorityAdminBody {
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  departmentKey: CreateAuthorityAdminBodyDepartmentKey;
+  organizationName: string;
+  phone?: string;
+}
+
+export interface AuthorityProfile {
+  id: number;
+  userId: number;
+  departmentKey: string;
+  organizationName: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type NotificationMetadata = { [key: string]: unknown } | null;
+
+export interface Notification {
+  id: number;
+  category: string;
+  title: string;
+  body: string;
+  read: boolean;
+  issueId?: number | null;
+  metadata?: NotificationMetadata;
+  createdAt: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -34,20 +96,42 @@ export const IssueStatus = {
   resolved: "resolved",
 } as const;
 
+export type IssueVerificationStatus =
+  (typeof IssueVerificationStatus)[keyof typeof IssueVerificationStatus];
+
+export const IssueVerificationStatus = {
+  pending: "pending",
+  flagged: "flagged",
+  rejected: "rejected",
+  approved: "approved",
+} as const;
+
 export interface Issue {
   id: number;
   userId?: number;
+  authorityId?: number | null;
   issueType: IssueIssueType;
   description?: string;
   imageUrl?: string;
   latitude: number;
   longitude: number;
+  reporterLatitude?: number | null;
+  reporterLongitude?: number | null;
   address?: string;
   status: IssueStatus;
+  verificationStatus: IssueVerificationStatus;
+  isDuplicate: boolean;
+  isValid: boolean;
+  validationNotes?: string | null;
   department: string;
   confidenceScore?: number;
   resolvedImageUrl?: string | null;
   imageHash: string;
+  imageMd5?: string | null;
+  imagePhash?: string | null;
+  exifTakenAt?: string | null;
+  exifLatitude?: number | null;
+  exifLongitude?: number | null;
   reporterName?: string | null;
   pointsAwarded: number;
   createdAt: string;
@@ -68,11 +152,13 @@ export const CreateIssueBodyIssueType = {
 
 export interface CreateIssueBody {
   userId?: number;
-  issueType: CreateIssueBodyIssueType;
+  issueType?: CreateIssueBodyIssueType;
   description?: string;
   imageUrl?: string;
   latitude: number;
   longitude: number;
+  reporterLatitude?: number;
+  reporterLongitude?: number;
   address: string;
   confidenceScore?: number;
   imageHash: string;
@@ -128,12 +214,16 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  emailVerified?: boolean;
   phone?: string | null;
   role: UserRole;
   points: number;
   badge?: string | null;
   totalReports: number;
   resolvedReports: number;
+  validReports: number;
+  rejectedReports: number;
+  trustScore: number;
   createdAt: string;
 }
 
@@ -158,6 +248,8 @@ export interface AuthorityLoginResponse {
   authority: User;
   token: string;
   department: string;
+  departmentKey?: string;
+  authorityId?: number;
 }
 
 export interface LeaderboardEntry {
@@ -217,6 +309,11 @@ export interface AnalyticsSummary {
   totalUsers: number;
   totalPointsAwarded: number;
   resolutionRate: number;
+  flaggedReports: number;
+  rejectedReports: number;
+  duplicateReports: number;
+  fakeReports: number;
+  avgTrustScore: number;
 }
 
 export interface IssueTypeCount {
@@ -240,6 +337,25 @@ export interface ActivityItem {
   reporterName?: string | null;
   createdAt: string;
 }
+
+export type RegisterUser201 = {
+  userId: number;
+  message: string;
+};
+
+export type ResendRegistrationOtp200 = {
+  ok: boolean;
+  message: string;
+};
+
+export type MarkNotificationRead200 = {
+  ok: boolean;
+};
+
+export type AdminCreateAuthority201 = {
+  user?: User;
+  authority?: AuthorityProfile;
+};
 
 export type ListIssuesParams = {
   status?: ListIssuesStatus;
@@ -273,6 +389,19 @@ export const ListIssuesIssueType = {
 export type GetLeaderboardParams = {
   limit?: number;
 };
+
+export type GetAuthorityAssignedIssuesParams = {
+  status?: GetAuthorityAssignedIssuesStatus;
+};
+
+export type GetAuthorityAssignedIssuesStatus =
+  (typeof GetAuthorityAssignedIssuesStatus)[keyof typeof GetAuthorityAssignedIssuesStatus];
+
+export const GetAuthorityAssignedIssuesStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  resolved: "resolved",
+} as const;
 
 export type GetAuthorityIssuesParams = {
   department: string;

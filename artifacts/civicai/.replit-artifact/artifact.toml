@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "CivicAI – Smart Civic Issue Reporting"
+title = "CivicAI"
 version = "1.0.0"
 id = "artifacts/civicai"
 router = "path"

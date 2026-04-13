@@ -62,6 +62,14 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    // Forward /api to the Express app during local dev (see replit.md). Override with API_PROXY_TARGET.
+    proxy: {
+      "^/api": {
+        target: process.env.API_PROXY_TARGET ?? "http://127.0.0.1:3000",
+        changeOrigin: true,
+        ws: true,
+      },
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

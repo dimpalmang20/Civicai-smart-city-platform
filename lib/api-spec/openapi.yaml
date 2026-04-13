@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Registration, OTP, and session helpers
+  - name: notifications
+    description: In-app notifications for citizens
+  - name: admin
+    description: Administrative provisioning
   - name: issues
     description: Civic issue operations
   - name: users
@@ -22,6 +28,147 @@ tags:
     description: Dashboard analytics
 
 paths:
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Start registration (sends OTP)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserBody"
+      responses:
+        "201":
+          description: Pending verification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: integer
+                  message:
+                    type: string
+                required: [userId, message]
+
+  /auth/verify-otp:
+    post:
+      operationId: verifyRegistrationOtp
+      tags: [auth]
+      summary: Verify email OTP and receive JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpBody"
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+
+  /auth/resend-otp:
+    post:
+      operationId: resendRegistrationOtp
+      tags: [auth]
+      summary: Resend OTP for pending registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendOtpBody"
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  message:
+                    type: string
+                required: [ok, message]
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+
+  /admin/authorities:
+    post:
+      operationId: adminCreateAuthority
+      tags: [admin]
+      summary: Provision an authority account (requires X-Admin-Key)
+      parameters:
+        - name: X-Admin-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAuthorityAdminBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  authority:
+                    $ref: "#/components/schemas/AuthorityProfile"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -123,6 +270,8 @@ paths:
       operationId: updateIssue
       tags: [issues]
       summary: Update issue status
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -164,6 +313,21 @@ paths:
                 $ref: "#/components/schemas/DetectionResult"
 
   # ─── USERS ──────────────────────────────────────────────────────────────────
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      tags: [users]
+      summary: Current authenticated user (JWT)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
   /users:
     post:
       operationId: createUser
@@ -201,6 +365,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+
+  /users/{id}/issues:
+    get:
+      operationId: getUserIssues
+      tags: [users]
+      summary: List issues reported by a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of user issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
 
   /users/login:
     post:
@@ -285,6 +470,29 @@ paths:
                 $ref: "#/components/schemas/WithdrawResponse"
 
   # ─── AUTHORITIES ─────────────────────────────────────────────────────────────
+  /authorities/assigned:
+    get:
+      operationId: getAuthorityAssignedIssues
+      tags: [authorities]
+      summary: Issues assigned to the logged-in authority (JWT)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, resolved]
+      responses:
+        "200":
+          description: Assigned issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
+
   /authorities/login:
     post:
       operationId: authorityLogin
@@ -396,7 +604,110 @@ paths:
                   $ref: "#/components/schemas/ActivityItem"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from /users/login, /authorities/login, or /auth/verify-otp
+
   schemas:
+    RegisterUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        phone:
+          type: string
+      required: [name, email, password]
+
+    VerifyOtpBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+          pattern: "^\\d{6}$"
+      required: [email, code]
+
+    ResendOtpBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required: [email]
+
+    CreateAuthorityAdminBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        departmentKey:
+          type: string
+          enum: [sanitation, electricity, pwd, water, recycling, municipality]
+        organizationName:
+          type: string
+        phone:
+          type: string
+      required: [name, email, password, departmentKey, organizationName]
+
+    AuthorityProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        departmentKey:
+          type: string
+        organizationName:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, departmentKey, organizationName, isActive, createdAt]
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        category:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        read:
+          type: boolean
+        issueId:
+          type: integer
+          nullable: true
+        metadata:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, category, title, body, read, createdAt]
+
     HealthStatus:
       type: object
       properties:
@@ -420,6 +731,9 @@ components:
           type: integer
         userId:
           type: integer
+        authorityId:
+          type: integer
+          nullable: true
         issueType:
           type: string
           enum: [garbage, pothole, water_leakage, street_light, plastic, other]
@@ -431,11 +745,27 @@ components:
           type: number
         longitude:
           type: number
+        reporterLatitude:
+          type: number
+          nullable: true
+        reporterLongitude:
+          type: number
+          nullable: true
         address:
           type: string
         status:
           type: string
           enum: [pending, in_progress, resolved]
+        verificationStatus:
+          type: string
+          enum: [pending, flagged, rejected, approved]
+        isDuplicate:
+          type: boolean
+        isValid:
+          type: boolean
+        validationNotes:
+          type: string
+          nullable: true
         department:
           type: string
         confidenceScore:
@@ -445,6 +775,22 @@ components:
           nullable: true
         imageHash:
           type: string
+        imageMd5:
+          type: string
+          nullable: true
+        imagePhash:
+          type: string
+          nullable: true
+        exifTakenAt:
+          type: string
+          format: date-time
+          nullable: true
+        exifLatitude:
+          type: number
+          nullable: true
+        exifLongitude:
+          type: number
+          nullable: true
         reporterName:
           type: string
           nullable: true
@@ -462,6 +808,9 @@ components:
         - latitude
         - longitude
         - status
+        - verificationStatus
+        - isDuplicate
+        - isValid
         - department
         - imageHash
         - pointsAwarded
@@ -484,13 +833,17 @@ components:
           type: number
         longitude:
           type: number
+        reporterLatitude:
+          type: number
+        reporterLongitude:
+          type: number
         address:
           type: string
         confidenceScore:
           type: number
         imageHash:
           type: string
-      required: [issueType, latitude, longitude, address, imageHash]
+      required: [latitude, longitude, address, imageHash]
 
     UpdateIssueBody:
       type: object
@@ -533,6 +886,8 @@ components:
           type: string
         email:
           type: string
+        emailVerified:
+          type: boolean
         phone:
           type: string
           nullable: true
@@ -548,10 +903,16 @@ components:
           type: integer
         resolvedReports:
           type: integer
+        validReports:
+          type: integer
+        rejectedReports:
+          type: integer
+        trustScore:
+          type: number
         createdAt:
           type: string
           format: date-time
-      required: [id, name, email, role, points, totalReports, resolvedReports, createdAt]
+      required: [id, name, email, role, points, totalReports, resolvedReports, validReports, rejectedReports, trustScore, createdAt]
 
     CreateUserBody:
       type: object
@@ -593,6 +954,10 @@ components:
           type: string
         department:
           type: string
+        departmentKey:
+          type: string
+        authorityId:
+          type: integer
       required: [authority, token, department]
 
     LeaderboardEntry:
@@ -695,6 +1060,16 @@ components:
           type: integer
         resolutionRate:
           type: number
+        flaggedReports:
+          type: integer
+        rejectedReports:
+          type: integer
+        duplicateReports:
+          type: integer
+        fakeReports:
+          type: integer
+        avgTrustScore:
+          type: number
       required:
         - totalIssues
         - resolvedIssues
@@ -703,6 +1078,11 @@ components:
         - totalUsers
         - totalPointsAwarded
         - resolutionRate
+        - flaggedReports
+        - rejectedReports
+        - duplicateReports
+        - fakeReports
+        - avgTrustScore
 
     IssueTypeCount:
       type: object

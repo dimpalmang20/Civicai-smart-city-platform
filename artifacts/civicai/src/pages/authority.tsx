@@ -7,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   useAuthorityLogin,
-  useGetAuthorityIssues,
+  useGetAuthorityAssignedIssues,
   useUpdateIssue,
-  getGetAuthorityIssuesQueryKey,
+  getGetAuthorityAssignedIssuesQueryKey,
   getGetIssueQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -29,6 +29,8 @@ import {
   Recycle,
   ExternalLink,
 } from "lucide-react";
+import { asArray } from "@/lib/as-array";
+import type { Issue } from "@workspace/api-client-react";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-200",
@@ -55,12 +57,31 @@ function AuthorityLoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+  
     try {
-      const result = await login.mutateAsync({ data: { email, password } });
-      loginAuthority({ ...(result as any).authority, department: (result as any).department });
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          isAuthorityLogin: true
+        })
+      });
+  
+      const result = await res.json();
+  
+      if (!res.ok) {
+        throw new Error(result.message || "Login failed");
+      }
+  
+      loginAuthority(result.user, result.token);
       window.location.reload();
-    } catch {
-      setError("Invalid credentials. Use authority account credentials.");
+  
+    } catch (err: any) {
+      setError(err.message || "Invalid credentials");
     }
   };
 
@@ -111,30 +132,38 @@ function AuthorityDashboard() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { data: issues, isLoading } = useGetAuthorityIssues(
+  const { data: issues, isLoading } = useGetAuthorityAssignedIssues(
     {
-      department: authority?.department ?? "Municipality",
       status: statusFilter !== "all" ? (statusFilter as any) : undefined,
     },
     {
-      query: { enabled: !!authority?.department },
-    }
+      query: {
+        enabled: !!authority && !!localStorage.getItem("civicai_token"),
+        queryKey: getGetAuthorityAssignedIssuesQueryKey({
+          status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+        }),
+      },
+    },
   );
   const updateIssue = useUpdateIssue();
+
+  const issueRows = asArray<Issue>(issues);
 
   const handleAction = async (id: number, status: "in_progress" | "resolved") => {
     await updateIssue.mutateAsync({ id, data: { status } });
     queryClient.invalidateQueries({
-      queryKey: getGetAuthorityIssuesQueryKey({ department: authority?.department ?? "" }),
+      queryKey: getGetAuthorityAssignedIssuesQueryKey({
+        status: statusFilter !== "all" ? (statusFilter as any) : undefined,
+      }),
     });
     queryClient.invalidateQueries({ queryKey: getGetIssueQueryKey(id) });
   };
 
   const stats = {
-    total: issues?.length ?? 0,
-    pending: issues?.filter((i) => i.status === "pending").length ?? 0,
-    inProgress: issues?.filter((i) => i.status === "in_progress").length ?? 0,
-    resolved: issues?.filter((i) => i.status === "resolved").length ?? 0,
+    total: issueRows.length,
+    pending: issueRows.filter((i) => i.status === "pending").length,
+    inProgress: issueRows.filter((i) => i.status === "in_progress").length,
+    resolved: issueRows.filter((i) => i.status === "resolved").length,
   };
 
   return (
@@ -194,8 +223,8 @@ function AuthorityDashboard() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : issues && issues.length > 0 ? (
-          issues.map((issue) => (
+        ) : issueRows.length > 0 ? (
+          issueRows.map((issue) => (
             <motion.div
               key={issue.id}
               initial={{ opacity: 0, y: 10 }}
@@ -204,9 +233,15 @@ function AuthorityDashboard() {
               <Card className="hover:shadow-sm transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
-                      {ISSUE_ICONS[issue.issueType] ?? <MapPin className="h-4 w-4" />}
-                    </div>
+                    {issue.imageUrl ? (
+                      <div className="w-20 h-20 rounded-lg overflow-hidden border shrink-0 bg-muted">
+                        <img src={issue.imageUrl} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="p-2 bg-primary/10 rounded-lg text-primary shrink-0">
+                        {ISSUE_ICONS[issue.issueType] ?? <MapPin className="h-4 w-4" />}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-semibold capitalize">{issue.issueType.replace("_", " ")}</span>
@@ -215,6 +250,22 @@ function AuthorityDashboard() {
                         </span>
                       </div>
                       <div className="text-sm text-muted-foreground">{issue.address}</div>
+                      <div className="mt-2 rounded-md overflow-hidden border h-36 bg-muted hidden sm:block">
+                        <iframe
+                          title="Location map"
+                          className="w-full h-full border-0"
+                          loading="lazy"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(issue.longitude) - 0.006}%2C${Number(issue.latitude) - 0.006}%2C${Number(issue.longitude) + 0.006}%2C${Number(issue.latitude) + 0.006}&layer=mapnik&marker=${Number(issue.latitude)}%2C${Number(issue.longitude)}`}
+                        />
+                      </div>
+                      <a
+                        className="text-xs text-primary inline-flex items-center gap-1 mt-1 hover:underline"
+                        href={`https://www.google.com/maps?q=${Number(issue.latitude)},${Number(issue.longitude)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Open in Maps
+                      </a>
                       {issue.description && (
                         <div className="text-xs text-muted-foreground mt-1">{issue.description}</div>
                       )}
@@ -260,7 +311,7 @@ function AuthorityDashboard() {
           ))
         ) : (
           <div className="py-12 text-center text-muted-foreground">
-            No issues assigned to {authority?.department} yet.
+            No complaints assigned to your authority yet.
           </div>
         )}
       </div>

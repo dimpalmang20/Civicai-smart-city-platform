@@ -8,6 +8,113 @@
 import * as zod from "zod";
 
 /**
+ * @summary Start registration (sends OTP)
+ */
+export const registerUserBodyPasswordMin = 8;
+
+export const RegisterUserBody = zod.object({
+  name: zod.string(),
+  email: zod.string().email(),
+  password: zod.string().min(registerUserBodyPasswordMin),
+  phone: zod.string().optional(),
+});
+
+/**
+ * @summary Verify email OTP and receive JWT
+ */
+export const verifyRegistrationOtpBodyCodeRegExp = new RegExp("^\\d{6}$");
+
+export const VerifyRegistrationOtpBody = zod.object({
+  email: zod.string().email(),
+  code: zod.string().regex(verifyRegistrationOtpBodyCodeRegExp),
+});
+
+export const VerifyRegistrationOtpResponse = zod.object({
+  user: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    emailVerified: zod.boolean().optional(),
+    phone: zod.string().nullish(),
+    role: zod.enum(["user", "authority", "admin"]),
+    points: zod.number(),
+    badge: zod.string().nullish(),
+    totalReports: zod.number(),
+    resolvedReports: zod.number(),
+    validReports: zod.number(),
+    rejectedReports: zod.number(),
+    trustScore: zod.number(),
+    createdAt: zod.coerce.date(),
+  }),
+  token: zod.string(),
+});
+
+/**
+ * @summary Resend OTP for pending registration
+ */
+export const ResendRegistrationOtpBody = zod.object({
+  email: zod.string().email(),
+});
+
+export const ResendRegistrationOtpResponse = zod.object({
+  ok: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
+ * @summary List notifications for the authenticated user
+ */
+export const ListNotificationsResponseItem = zod.object({
+  id: zod.number(),
+  category: zod.string(),
+  title: zod.string(),
+  body: zod.string(),
+  read: zod.boolean(),
+  issueId: zod.number().nullish(),
+  metadata: zod.object({}).passthrough().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListNotificationsResponse = zod.array(
+  ListNotificationsResponseItem,
+);
+
+/**
+ * @summary Mark a notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MarkNotificationReadResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Provision an authority account (requires X-Admin-Key)
+ */
+export const AdminCreateAuthorityHeader = zod.object({
+  "X-Admin-Key": zod.string(),
+});
+
+export const adminCreateAuthorityBodyPasswordMin = 8;
+
+export const AdminCreateAuthorityBody = zod.object({
+  name: zod.string(),
+  email: zod.string().email(),
+  password: zod.string().min(adminCreateAuthorityBodyPasswordMin),
+  departmentKey: zod.enum([
+    "sanitation",
+    "electricity",
+    "pwd",
+    "water",
+    "recycling",
+    "municipality",
+  ]),
+  organizationName: zod.string(),
+  phone: zod.string().optional(),
+});
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -40,6 +147,7 @@ export const ListIssuesQueryParams = zod.object({
 export const ListIssuesResponseItem = zod.object({
   id: zod.number(),
   userId: zod.number().optional(),
+  authorityId: zod.number().nullish(),
   issueType: zod.enum([
     "garbage",
     "pothole",
@@ -52,12 +160,23 @@ export const ListIssuesResponseItem = zod.object({
   imageUrl: zod.string().optional(),
   latitude: zod.number(),
   longitude: zod.number(),
+  reporterLatitude: zod.number().nullish(),
+  reporterLongitude: zod.number().nullish(),
   address: zod.string().optional(),
   status: zod.enum(["pending", "in_progress", "resolved"]),
+  verificationStatus: zod.enum(["pending", "flagged", "rejected", "approved"]),
+  isDuplicate: zod.boolean(),
+  isValid: zod.boolean(),
+  validationNotes: zod.string().nullish(),
   department: zod.string(),
   confidenceScore: zod.number().optional(),
   resolvedImageUrl: zod.string().nullish(),
   imageHash: zod.string(),
+  imageMd5: zod.string().nullish(),
+  imagePhash: zod.string().nullish(),
+  exifTakenAt: zod.coerce.date().nullish(),
+  exifLatitude: zod.number().nullish(),
+  exifLongitude: zod.number().nullish(),
   reporterName: zod.string().nullish(),
   pointsAwarded: zod.number(),
   createdAt: zod.coerce.date(),
@@ -70,18 +189,22 @@ export const ListIssuesResponse = zod.array(ListIssuesResponseItem);
  */
 export const CreateIssueBody = zod.object({
   userId: zod.number().optional(),
-  issueType: zod.enum([
-    "garbage",
-    "pothole",
-    "water_leakage",
-    "street_light",
-    "plastic",
-    "other",
-  ]),
+  issueType: zod
+    .enum([
+      "garbage",
+      "pothole",
+      "water_leakage",
+      "street_light",
+      "plastic",
+      "other",
+    ])
+    .optional(),
   description: zod.string().optional(),
   imageUrl: zod.string().optional(),
   latitude: zod.number(),
   longitude: zod.number(),
+  reporterLatitude: zod.number().optional(),
+  reporterLongitude: zod.number().optional(),
   address: zod.string(),
   confidenceScore: zod.number().optional(),
   imageHash: zod.string(),
@@ -97,6 +220,7 @@ export const GetIssueParams = zod.object({
 export const GetIssueResponse = zod.object({
   id: zod.number(),
   userId: zod.number().optional(),
+  authorityId: zod.number().nullish(),
   issueType: zod.enum([
     "garbage",
     "pothole",
@@ -109,12 +233,23 @@ export const GetIssueResponse = zod.object({
   imageUrl: zod.string().optional(),
   latitude: zod.number(),
   longitude: zod.number(),
+  reporterLatitude: zod.number().nullish(),
+  reporterLongitude: zod.number().nullish(),
   address: zod.string().optional(),
   status: zod.enum(["pending", "in_progress", "resolved"]),
+  verificationStatus: zod.enum(["pending", "flagged", "rejected", "approved"]),
+  isDuplicate: zod.boolean(),
+  isValid: zod.boolean(),
+  validationNotes: zod.string().nullish(),
   department: zod.string(),
   confidenceScore: zod.number().optional(),
   resolvedImageUrl: zod.string().nullish(),
   imageHash: zod.string(),
+  imageMd5: zod.string().nullish(),
+  imagePhash: zod.string().nullish(),
+  exifTakenAt: zod.coerce.date().nullish(),
+  exifLatitude: zod.number().nullish(),
+  exifLongitude: zod.number().nullish(),
   reporterName: zod.string().nullish(),
   pointsAwarded: zod.number(),
   createdAt: zod.coerce.date(),
@@ -136,6 +271,7 @@ export const UpdateIssueBody = zod.object({
 export const UpdateIssueResponse = zod.object({
   id: zod.number(),
   userId: zod.number().optional(),
+  authorityId: zod.number().nullish(),
   issueType: zod.enum([
     "garbage",
     "pothole",
@@ -148,12 +284,23 @@ export const UpdateIssueResponse = zod.object({
   imageUrl: zod.string().optional(),
   latitude: zod.number(),
   longitude: zod.number(),
+  reporterLatitude: zod.number().nullish(),
+  reporterLongitude: zod.number().nullish(),
   address: zod.string().optional(),
   status: zod.enum(["pending", "in_progress", "resolved"]),
+  verificationStatus: zod.enum(["pending", "flagged", "rejected", "approved"]),
+  isDuplicate: zod.boolean(),
+  isValid: zod.boolean(),
+  validationNotes: zod.string().nullish(),
   department: zod.string(),
   confidenceScore: zod.number().optional(),
   resolvedImageUrl: zod.string().nullish(),
   imageHash: zod.string(),
+  imageMd5: zod.string().nullish(),
+  imagePhash: zod.string().nullish(),
+  exifTakenAt: zod.coerce.date().nullish(),
+  exifLatitude: zod.number().nullish(),
+  exifLongitude: zod.number().nullish(),
   reporterName: zod.string().nullish(),
   pointsAwarded: zod.number(),
   createdAt: zod.coerce.date(),
@@ -183,6 +330,26 @@ export const DetectIssueResponse = zod.object({
 });
 
 /**
+ * @summary Current authenticated user (JWT)
+ */
+export const GetCurrentUserResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  emailVerified: zod.boolean().optional(),
+  phone: zod.string().nullish(),
+  role: zod.enum(["user", "authority", "admin"]),
+  points: zod.number(),
+  badge: zod.string().nullish(),
+  totalReports: zod.number(),
+  resolvedReports: zod.number(),
+  validReports: zod.number(),
+  rejectedReports: zod.number(),
+  trustScore: zod.number(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Register a new user
  */
 export const CreateUserBody = zod.object({
@@ -203,14 +370,65 @@ export const GetUserResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
+  emailVerified: zod.boolean().optional(),
   phone: zod.string().nullish(),
   role: zod.enum(["user", "authority", "admin"]),
   points: zod.number(),
   badge: zod.string().nullish(),
   totalReports: zod.number(),
   resolvedReports: zod.number(),
+  validReports: zod.number(),
+  rejectedReports: zod.number(),
+  trustScore: zod.number(),
   createdAt: zod.coerce.date(),
 });
+
+/**
+ * @summary List issues reported by a user
+ */
+export const GetUserIssuesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetUserIssuesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number().optional(),
+  authorityId: zod.number().nullish(),
+  issueType: zod.enum([
+    "garbage",
+    "pothole",
+    "water_leakage",
+    "street_light",
+    "plastic",
+    "other",
+  ]),
+  description: zod.string().optional(),
+  imageUrl: zod.string().optional(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  reporterLatitude: zod.number().nullish(),
+  reporterLongitude: zod.number().nullish(),
+  address: zod.string().optional(),
+  status: zod.enum(["pending", "in_progress", "resolved"]),
+  verificationStatus: zod.enum(["pending", "flagged", "rejected", "approved"]),
+  isDuplicate: zod.boolean(),
+  isValid: zod.boolean(),
+  validationNotes: zod.string().nullish(),
+  department: zod.string(),
+  confidenceScore: zod.number().optional(),
+  resolvedImageUrl: zod.string().nullish(),
+  imageHash: zod.string(),
+  imageMd5: zod.string().nullish(),
+  imagePhash: zod.string().nullish(),
+  exifTakenAt: zod.coerce.date().nullish(),
+  exifLatitude: zod.number().nullish(),
+  exifLongitude: zod.number().nullish(),
+  reporterName: zod.string().nullish(),
+  pointsAwarded: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetUserIssuesResponse = zod.array(GetUserIssuesResponseItem);
 
 /**
  * @summary Login user
@@ -225,12 +443,16 @@ export const LoginUserResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     email: zod.string(),
+    emailVerified: zod.boolean().optional(),
     phone: zod.string().nullish(),
     role: zod.enum(["user", "authority", "admin"]),
     points: zod.number(),
     badge: zod.string().nullish(),
     totalReports: zod.number(),
     resolvedReports: zod.number(),
+    validReports: zod.number(),
+    rejectedReports: zod.number(),
+    trustScore: zod.number(),
     createdAt: zod.coerce.date(),
   }),
   token: zod.string(),
@@ -298,6 +520,55 @@ export const WithdrawRewardsResponse = zod.object({
 });
 
 /**
+ * @summary Issues assigned to the logged-in authority (JWT)
+ */
+export const GetAuthorityAssignedIssuesQueryParams = zod.object({
+  status: zod.enum(["pending", "in_progress", "resolved"]).optional(),
+});
+
+export const GetAuthorityAssignedIssuesResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number().optional(),
+  authorityId: zod.number().nullish(),
+  issueType: zod.enum([
+    "garbage",
+    "pothole",
+    "water_leakage",
+    "street_light",
+    "plastic",
+    "other",
+  ]),
+  description: zod.string().optional(),
+  imageUrl: zod.string().optional(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  reporterLatitude: zod.number().nullish(),
+  reporterLongitude: zod.number().nullish(),
+  address: zod.string().optional(),
+  status: zod.enum(["pending", "in_progress", "resolved"]),
+  verificationStatus: zod.enum(["pending", "flagged", "rejected", "approved"]),
+  isDuplicate: zod.boolean(),
+  isValid: zod.boolean(),
+  validationNotes: zod.string().nullish(),
+  department: zod.string(),
+  confidenceScore: zod.number().optional(),
+  resolvedImageUrl: zod.string().nullish(),
+  imageHash: zod.string(),
+  imageMd5: zod.string().nullish(),
+  imagePhash: zod.string().nullish(),
+  exifTakenAt: zod.coerce.date().nullish(),
+  exifLatitude: zod.number().nullish(),
+  exifLongitude: zod.number().nullish(),
+  reporterName: zod.string().nullish(),
+  pointsAwarded: zod.number(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetAuthorityAssignedIssuesResponse = zod.array(
+  GetAuthorityAssignedIssuesResponseItem,
+);
+
+/**
  * @summary Authority panel login
  */
 export const AuthorityLoginBody = zod.object({
@@ -310,16 +581,22 @@ export const AuthorityLoginResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     email: zod.string(),
+    emailVerified: zod.boolean().optional(),
     phone: zod.string().nullish(),
     role: zod.enum(["user", "authority", "admin"]),
     points: zod.number(),
     badge: zod.string().nullish(),
     totalReports: zod.number(),
     resolvedReports: zod.number(),
+    validReports: zod.number(),
+    rejectedReports: zod.number(),
+    trustScore: zod.number(),
     createdAt: zod.coerce.date(),
   }),
   token: zod.string(),
   department: zod.string(),
+  departmentKey: zod.string().optional(),
+  authorityId: zod.number().optional(),
 });
 
 /**
@@ -333,6 +610,7 @@ export const GetAuthorityIssuesQueryParams = zod.object({
 export const GetAuthorityIssuesResponseItem = zod.object({
   id: zod.number(),
   userId: zod.number().optional(),
+  authorityId: zod.number().nullish(),
   issueType: zod.enum([
     "garbage",
     "pothole",
@@ -345,12 +623,23 @@ export const GetAuthorityIssuesResponseItem = zod.object({
   imageUrl: zod.string().optional(),
   latitude: zod.number(),
   longitude: zod.number(),
+  reporterLatitude: zod.number().nullish(),
+  reporterLongitude: zod.number().nullish(),
   address: zod.string().optional(),
   status: zod.enum(["pending", "in_progress", "resolved"]),
+  verificationStatus: zod.enum(["pending", "flagged", "rejected", "approved"]),
+  isDuplicate: zod.boolean(),
+  isValid: zod.boolean(),
+  validationNotes: zod.string().nullish(),
   department: zod.string(),
   confidenceScore: zod.number().optional(),
   resolvedImageUrl: zod.string().nullish(),
   imageHash: zod.string(),
+  imageMd5: zod.string().nullish(),
+  imagePhash: zod.string().nullish(),
+  exifTakenAt: zod.coerce.date().nullish(),
+  exifLatitude: zod.number().nullish(),
+  exifLongitude: zod.number().nullish(),
   reporterName: zod.string().nullish(),
   pointsAwarded: zod.number(),
   createdAt: zod.coerce.date(),
@@ -371,6 +660,11 @@ export const GetAnalyticsSummaryResponse = zod.object({
   totalUsers: zod.number(),
   totalPointsAwarded: zod.number(),
   resolutionRate: zod.number(),
+  flaggedReports: zod.number(),
+  rejectedReports: zod.number(),
+  duplicateReports: zod.number(),
+  fakeReports: zod.number(),
+  avgTrustScore: zod.number(),
 });
 
 /**

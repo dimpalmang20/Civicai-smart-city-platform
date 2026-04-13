@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, pgEnum, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -9,6 +9,8 @@ export const usersTable = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  /** After OTP verification; existing rows default true so logins keep working. */
+  emailVerified: boolean("email_verified").notNull().default(true),
   phone: text("phone"),
   role: userRoleEnum("role").notNull().default("user"),
   department: text("department"), // for authority accounts
@@ -16,6 +18,9 @@ export const usersTable = pgTable("users", {
   badge: text("badge"),
   totalReports: integer("total_reports").notNull().default(0),
   resolvedReports: integer("resolved_reports").notNull().default(0),
+  validReports: integer("valid_reports").notNull().default(0),
+  rejectedReports: integer("rejected_reports").notNull().default(0),
+  trustScore: numeric("trust_score", { precision: 5, scale: 4 }).notNull().default("1.0000"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

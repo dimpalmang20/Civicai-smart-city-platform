@@ -15,7 +15,7 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [ "src/index.ts"],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -29,6 +29,8 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      // Loads .wasm via __dirname; bundling breaks paths (looks in dist/). Keep as runtime dependency.
+      "imghash",
       "sharp",
       "better-sqlite3",
       "sqlite3",

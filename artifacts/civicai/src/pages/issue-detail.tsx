@@ -20,6 +20,7 @@ import {
   Building2,
   ArrowLeft,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -163,14 +164,33 @@ export default function IssueDetail() {
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-2">
-            <div>
+            <div className="col-span-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
                 <MapPin className="h-3 w-3" /> Location
               </div>
               <div className="text-sm font-medium text-foreground">{issue.address}</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                {Number(issue.latitude).toFixed(4)}°N, {Number(issue.longitude).toFixed(4)}°E
+                {Number(issue.latitude).toFixed(5)}, {Number(issue.longitude).toFixed(5)}
               </div>
+              <div className="mt-3 rounded-lg overflow-hidden border border-border h-48 bg-muted">
+                <iframe
+                  title="Map"
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(issue.longitude) - 0.008}%2C${Number(issue.latitude) - 0.008}%2C${Number(issue.longitude) + 0.008}%2C${Number(issue.latitude) + 0.008}&layer=mapnik&marker=${Number(issue.latitude)}%2C${Number(issue.longitude)}`}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Map data © OpenStreetMap contributors (Nominatim / OSM).</p>
+              <Button variant="outline" size="sm" className="mt-2 gap-1.5" asChild>
+                <a
+                  href={`https://www.google.com/maps?q=${Number(issue.latitude)},${Number(issue.longitude)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open in Maps
+                </a>
+              </Button>
             </div>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">

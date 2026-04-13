@@ -36,6 +36,8 @@ import {
   Recycle,
   ExternalLink,
 } from "lucide-react";
+import { asArray } from "@/lib/as-array";
+import type { Issue, IssueTimePoint, IssueTypeCount } from "@workspace/api-client-react";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-200",
@@ -67,12 +69,24 @@ export default function Dashboard() {
     limit: 20,
   });
 
+  const byTypeRows = asArray<IssueTypeCount>(byType);
+  const overTimeRows = asArray<IssueTimePoint>(overTime);
+  const issueRows = asArray<Issue>(issues);
+
   const statCards = summary
     ? [
         { icon: <TrendingUp className="h-5 w-5" />, label: "Total Issues", value: summary.totalIssues, color: "text-primary" },
         { icon: <CheckCircle className="h-5 w-5" />, label: "Resolved", value: summary.resolvedIssues, color: "text-green-600" },
         { icon: <AlertCircle className="h-5 w-5" />, label: "In Progress", value: summary.inProgressIssues, color: "text-blue-600" },
         { icon: <Clock className="h-5 w-5" />, label: "Pending", value: summary.pendingIssues, color: "text-amber-600" },
+      ]
+    : [];
+
+  const validationCards = summary
+    ? [
+        { label: "Fake Reports", value: summary.fakeReports, hint: "Rejected + duplicates", color: "text-red-600" },
+        { label: "Flagged Reports", value: summary.flaggedReports, hint: "Needs review", color: "text-orange-600" },
+        { label: "Avg Trust Score", value: summary.avgTrustScore.toFixed(2), hint: "Across all users", color: "text-emerald-700" },
       ]
     : [];
 
@@ -110,6 +124,32 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Validation Overview */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {validationCards.map((c, i) => (
+            <motion.div
+              key={c.label}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 + i * 0.07 }}
+            >
+              <Card className="border-border/50">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground">{c.label}</div>
+                      <div className={`text-3xl font-bold ${c.color}`}>{c.value}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground text-right">{c.hint}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Bar Chart: Issues by Type */}
@@ -118,9 +158,9 @@ export default function Dashboard() {
             <CardTitle className="text-base">Issues by Type</CardTitle>
           </CardHeader>
           <CardContent>
-            {byType && byType.length > 0 ? (
+            {byTypeRows.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={byType} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
+                <BarChart data={byTypeRows} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
@@ -128,7 +168,7 @@ export default function Dashboard() {
                     contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", fontSize: "12px" }}
                   />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {byType.map((_, idx) => (
+                    {byTypeRows.map((_, idx) => (
                       <Cell key={`cell-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}
                   </Bar>
@@ -148,9 +188,9 @@ export default function Dashboard() {
             <CardTitle className="text-base">Issues Over Time (30 Days)</CardTitle>
           </CardHeader>
           <CardContent>
-            {overTime && overTime.length > 0 ? (
+            {overTimeRows.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={overTime} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
+                <LineChart data={overTimeRows} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis
                     dataKey="date"
@@ -214,9 +254,9 @@ export default function Dashboard() {
           </div>
         </CardHeader>
         <CardContent>
-          {issues && issues.length > 0 ? (
+          {issueRows.length > 0 ? (
             <div className="space-y-2">
-              {issues.map((issue) => (
+              {issueRows.map((issue) => (
                 <div
                   key={issue.id}
                   className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-border hover:bg-muted/30 transition-colors"
@@ -264,9 +304,9 @@ export default function Dashboard() {
         <CardContent>
           <div className="rounded-xl bg-gradient-to-br from-primary/5 to-accent/5 border border-border/50 p-4 min-h-[200px]">
             <div className="text-sm text-muted-foreground mb-3 font-medium">Active Issue Locations</div>
-            {issues && issues.length > 0 ? (
+            {issueRows.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {issues.slice(0, 6).map((issue) => (
+                {issueRows.slice(0, 6).map((issue) => (
                   <div key={issue.id} className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border/50">
                     <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${
                       issue.status === "resolved" ? "bg-green-500" :

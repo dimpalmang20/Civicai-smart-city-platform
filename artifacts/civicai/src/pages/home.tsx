@@ -21,6 +21,9 @@ import {
   Recycle,
   Shield,
 } from "lucide-react";
+import { BeforeAfterCarousel } from "@/components/before-after-carousel";
+import { asArray } from "@/lib/as-array";
+import type { ActivityItem } from "@workspace/api-client-react";
 
 const ISSUE_ICONS: Record<string, React.ReactNode> = {
   garbage: <Trash2 className="h-4 w-4" />,
@@ -70,6 +73,7 @@ function StatCard({
 export default function Home() {
   const { data: summary } = useGetAnalyticsSummary();
   const { data: activity } = useGetRecentActivity({ limit: 6 });
+  const recentActivity = asArray<ActivityItem>(activity);
 
   return (
     <div className="space-y-12">
@@ -111,6 +115,35 @@ export default function Home() {
             </Link>
           </motion.div>
         </div>
+      </section>
+
+      {/* Sliding Before/After Banners */}
+      <section>
+        <BeforeAfterCarousel
+          slides={[
+            {
+              title: "Garbage cleared from residential lane",
+              category: "garbage",
+              locationLabel: "Delhi · Ward 12",
+              beforeImageUrl: "https://images.unsplash.com/photo-1585412727339-54e4bae3bbf9?w=1400&q=80",
+              afterImageUrl: "https://images.unsplash.com/photo-1528323273322-d81458248d40?w=1400&q=80",
+            },
+            {
+              title: "Water leakage fixed near main road",
+              category: "water",
+              locationLabel: "Gurugram · Sector 45",
+              beforeImageUrl: "https://images.unsplash.com/photo-1621249830555-2b1a88c1f6df?w=1400&q=80",
+              afterImageUrl: "https://images.unsplash.com/photo-1559827291-72ee739d0d9a?w=1400&q=80",
+            },
+            {
+              title: "Street light restored for safer nights",
+              category: "light",
+              locationLabel: "Noida · Block C",
+              beforeImageUrl: "https://images.unsplash.com/photo-1506382553541-3c9e09d4d3f2?w=1400&q=80",
+              afterImageUrl: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=1400&q=80",
+            },
+          ]}
+        />
       </section>
 
       {/* Stats Bar */}
@@ -163,7 +196,7 @@ export default function Home() {
       </section>
 
       {/* Recent Activity */}
-      {activity && activity.length > 0 && (
+      {recentActivity.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-xl font-bold text-foreground">Recent Activity</h2>
@@ -174,7 +207,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="space-y-3">
-            {activity.map((item, i) => (
+            {recentActivity.map((item, i) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, x: -20 }}

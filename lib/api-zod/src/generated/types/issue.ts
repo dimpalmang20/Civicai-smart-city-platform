@@ -7,21 +7,34 @@
  */
 import type { IssueIssueType } from "./issueIssueType";
 import type { IssueStatus } from "./issueStatus";
+import type { IssueVerificationStatus } from "./issueVerificationStatus";
 
 export interface Issue {
   id: number;
   userId?: number;
+  authorityId?: number | null;
   issueType: IssueIssueType;
   description?: string;
   imageUrl?: string;
   latitude: number;
   longitude: number;
+  reporterLatitude?: number | null;
+  reporterLongitude?: number | null;
   address?: string;
   status: IssueStatus;
+  verificationStatus: IssueVerificationStatus;
+  isDuplicate: boolean;
+  isValid: boolean;
+  validationNotes?: string | null;
   department: string;
   confidenceScore?: number;
   resolvedImageUrl?: string | null;
   imageHash: string;
+  imageMd5?: string | null;
+  imagePhash?: string | null;
+  exifTakenAt?: Date | null;
+  exifLatitude?: number | null;
+  exifLongitude?: number | null;
   reporterName?: string | null;
   pointsAwarded: number;
   createdAt: Date;

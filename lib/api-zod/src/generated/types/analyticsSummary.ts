@@ -14,4 +14,9 @@ export interface AnalyticsSummary {
   totalUsers: number;
   totalPointsAwarded: number;
   resolutionRate: number;
+  flaggedReports: number;
+  rejectedReports: number;
+  duplicateReports: number;
+  fakeReports: number;
+  avgTrustScore: number;
 }

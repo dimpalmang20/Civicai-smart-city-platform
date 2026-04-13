@@ -11,4 +11,6 @@ export interface AuthorityLoginResponse {
   authority: User;
   token: string;
   department: string;
+  departmentKey?: string;
+  authorityId?: number;
 }

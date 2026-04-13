@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useGetLeaderboard } from "@workspace/api-client-react";
+import { asArray } from "@/lib/as-array";
+import type { LeaderboardEntry } from "@workspace/api-client-react";
 import { Award, Star, Shield, Zap, TrendingUp, CheckCircle } from "lucide-react";
 
 const BADGE_CONFIG: Record<string, { color: string; icon: React.ReactNode; desc: string }> = {
@@ -30,6 +32,7 @@ const RANK_STYLES: Record<number, string> = {
 
 export default function Leaderboard() {
   const { data: leaderboard } = useGetLeaderboard({ limit: 20 });
+  const leaderboardRows = asArray<LeaderboardEntry>(leaderboard);
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -83,9 +86,9 @@ export default function Leaderboard() {
           <CardTitle className="text-base">Top Contributors</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {leaderboard && leaderboard.length > 0 ? (
+          {leaderboardRows.length > 0 ? (
             <div className="divide-y divide-border/50">
-              {leaderboard.map((entry, i) => (
+              {leaderboardRows.map((entry, i) => (
                 <motion.div
                   key={entry.userId}
                   initial={{ opacity: 0, x: -20 }}

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { usersTable, rewardsTable } from "@workspace/db";
+import { usersTable, issuesTable, authoritiesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import {
   CreateUserBody,
@@ -8,13 +8,22 @@ import {
   LoginUserBody,
   GetLeaderboardQueryParams,
 } from "@workspace/api-zod";
-import crypto from "crypto";
+import { hashPassword, verifyPassword } from "../lib/password";
+import { signAccessToken } from "../lib/jwt";
+import { requireAuth, type AuthedRequest } from "../middleware/auth";
 
 const router = Router();
 
-function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password).digest("hex");
-}
+// GET /api/users/me
+router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.auth!.userId)).limit(1);
+  if (!user) {
+    res.status(404).json({ error: "not_found", message: "User not found" });
+    return;
+  }
+  const { passwordHash: _, ...safe } = user;
+  res.json(safe);
+});
 
 // POST /api/users/login (must come before /:id)
 router.post("/login", async (req, res) => {
@@ -25,21 +34,37 @@ router.post("/login", async (req, res) => {
   }
 
   const { email, password } = parseResult.data;
-  const hash = hashPassword(password);
 
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, email))
-    .limit(1);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
 
-  if (!user || user.passwordHash !== hash) {
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
     res.status(401).json({ error: "invalid_credentials", message: "Invalid email or password" });
     return;
   }
 
+  if (!user.emailVerified) {
+    res.status(403).json({
+      error: "email_not_verified",
+      message: "Please verify your email with the OTP sent during registration.",
+    });
+    return;
+  }
+
+  const [authProfile] = await db
+    .select()
+    .from(authoritiesTable)
+    .where(eq(authoritiesTable.userId, user.id))
+    .limit(1);
+
+  const token = await signAccessToken({
+    userId: user.id,
+    role: user.role as "user" | "authority" | "admin",
+    email: user.email,
+    authorityId: authProfile?.id,
+  });
+
   const { passwordHash: _, ...safeUser } = user;
-  res.json({ user: safeUser, token: `token_${user.id}_${Date.now()}` });
+  res.json({ user: safeUser, token });
 });
 
 // GET /api/users/leaderboard (must come before /:id)
@@ -66,7 +91,25 @@ router.get("/leaderboard", async (req, res) => {
   res.json(leaderboard);
 });
 
-// POST /api/users
+// GET /api/users/:id/issues  (must come before /:id)
+router.get("/:id/issues", async (req, res) => {
+  const parseResult = GetUserParams.safeParse({ id: Number(req.params.id) });
+  if (!parseResult.success) {
+    res.status(400).json({ error: "invalid_params", message: "Invalid user ID" });
+    return;
+  }
+
+  const issues = await db
+    .select()
+    .from(issuesTable)
+    .where(eq(issuesTable.userId, parseResult.data.id))
+    .orderBy(desc(issuesTable.createdAt))
+    .limit(100);
+
+  res.json(issues);
+});
+
+// POST /api/users — legacy quick-register (verified). Prefer /auth/register + OTP for production.
 router.post("/", async (req, res) => {
   const parseResult = CreateUserBody.safeParse(req.body);
   if (!parseResult.success) {
@@ -75,7 +118,7 @@ router.post("/", async (req, res) => {
   }
 
   const { name, email, password, phone } = parseResult.data;
-  const passwordHash = hashPassword(password);
+  const passwordHash = await hashPassword(password);
 
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
@@ -85,7 +128,7 @@ router.post("/", async (req, res) => {
 
   const [user] = await db
     .insert(usersTable)
-    .values({ name, email, passwordHash, phone: phone ?? null, role: "user" })
+    .values({ name, email, passwordHash, phone: phone ?? null, role: "user", emailVerified: true })
     .returning();
 
   const { passwordHash: _, ...safeUser } = user;

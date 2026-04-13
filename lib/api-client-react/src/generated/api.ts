@@ -18,13 +18,16 @@ import type {
 
 import type {
   ActivityItem,
+  AdminCreateAuthority201,
   AnalyticsSummary,
   AuthorityLoginResponse,
+  CreateAuthorityAdminBody,
   CreateIssueBody,
   CreateUserBody,
   DetectIssueBody,
   DetectionResult,
   ErrorResponse,
+  GetAuthorityAssignedIssuesParams,
   GetAuthorityIssuesParams,
   GetLeaderboardParams,
   GetRecentActivityParams,
@@ -36,9 +39,16 @@ import type {
   ListIssuesParams,
   LoginBody,
   LoginResponse,
+  MarkNotificationRead200,
+  Notification,
+  RegisterUser201,
+  RegisterUserBody,
+  ResendOtpBody,
+  ResendRegistrationOtp200,
   UpdateIssueBody,
   User,
   UserRewards,
+  VerifyOtpBody,
   WithdrawBody,
   WithdrawResponse,
 } from "./api.schemas";
@@ -51,6 +61,510 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Start registration (sends OTP)
+ */
+export const getRegisterUserUrl = () => {
+  return `/api/auth/register`;
+};
+
+export const registerUser = async (
+  registerUserBody: RegisterUserBody,
+  options?: RequestInit,
+): Promise<RegisterUser201> => {
+  return customFetch<RegisterUser201>(getRegisterUserUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerUserBody),
+  });
+};
+
+export const getRegisterUserMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerUser>>,
+    TError,
+    { data: BodyType<RegisterUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerUser>>,
+  TError,
+  { data: BodyType<RegisterUserBody> },
+  TContext
+> => {
+  const mutationKey = ["registerUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerUser>>,
+    { data: BodyType<RegisterUserBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerUser(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerUser>>
+>;
+export type RegisterUserMutationBody = BodyType<RegisterUserBody>;
+export type RegisterUserMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Start registration (sends OTP)
+ */
+export const useRegisterUser = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerUser>>,
+    TError,
+    { data: BodyType<RegisterUserBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerUser>>,
+  TError,
+  { data: BodyType<RegisterUserBody> },
+  TContext
+> => {
+  return useMutation(getRegisterUserMutationOptions(options));
+};
+
+/**
+ * @summary Verify email OTP and receive JWT
+ */
+export const getVerifyRegistrationOtpUrl = () => {
+  return `/api/auth/verify-otp`;
+};
+
+export const verifyRegistrationOtp = async (
+  verifyOtpBody: VerifyOtpBody,
+  options?: RequestInit,
+): Promise<LoginResponse> => {
+  return customFetch<LoginResponse>(getVerifyRegistrationOtpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(verifyOtpBody),
+  });
+};
+
+export const getVerifyRegistrationOtpMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyRegistrationOtp>>,
+    TError,
+    { data: BodyType<VerifyOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyRegistrationOtp>>,
+  TError,
+  { data: BodyType<VerifyOtpBody> },
+  TContext
+> => {
+  const mutationKey = ["verifyRegistrationOtp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyRegistrationOtp>>,
+    { data: BodyType<VerifyOtpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return verifyRegistrationOtp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyRegistrationOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyRegistrationOtp>>
+>;
+export type VerifyRegistrationOtpMutationBody = BodyType<VerifyOtpBody>;
+export type VerifyRegistrationOtpMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Verify email OTP and receive JWT
+ */
+export const useVerifyRegistrationOtp = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyRegistrationOtp>>,
+    TError,
+    { data: BodyType<VerifyOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyRegistrationOtp>>,
+  TError,
+  { data: BodyType<VerifyOtpBody> },
+  TContext
+> => {
+  return useMutation(getVerifyRegistrationOtpMutationOptions(options));
+};
+
+/**
+ * @summary Resend OTP for pending registration
+ */
+export const getResendRegistrationOtpUrl = () => {
+  return `/api/auth/resend-otp`;
+};
+
+export const resendRegistrationOtp = async (
+  resendOtpBody: ResendOtpBody,
+  options?: RequestInit,
+): Promise<ResendRegistrationOtp200> => {
+  return customFetch<ResendRegistrationOtp200>(getResendRegistrationOtpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(resendOtpBody),
+  });
+};
+
+export const getResendRegistrationOtpMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resendRegistrationOtp>>,
+    TError,
+    { data: BodyType<ResendOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resendRegistrationOtp>>,
+  TError,
+  { data: BodyType<ResendOtpBody> },
+  TContext
+> => {
+  const mutationKey = ["resendRegistrationOtp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resendRegistrationOtp>>,
+    { data: BodyType<ResendOtpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return resendRegistrationOtp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResendRegistrationOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resendRegistrationOtp>>
+>;
+export type ResendRegistrationOtpMutationBody = BodyType<ResendOtpBody>;
+export type ResendRegistrationOtpMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Resend OTP for pending registration
+ */
+export const useResendRegistrationOtp = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resendRegistrationOtp>>,
+    TError,
+    { data: BodyType<ResendOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resendRegistrationOtp>>,
+  TError,
+  { data: BodyType<ResendOtpBody> },
+  TContext
+> => {
+  return useMutation(getResendRegistrationOtpMutationOptions(options));
+};
+
+/**
+ * @summary List notifications for the authenticated user
+ */
+export const getListNotificationsUrl = () => {
+  return `/api/notifications`;
+};
+
+export const listNotifications = async (
+  options?: RequestInit,
+): Promise<Notification[]> => {
+  return customFetch<Notification[]>(getListNotificationsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListNotificationsQueryKey = () => {
+  return [`/api/notifications`] as const;
+};
+
+export const getListNotificationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListNotificationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listNotifications>>
+  > = ({ signal }) => listNotifications({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListNotificationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNotifications>>
+>;
+export type ListNotificationsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List notifications for the authenticated user
+ */
+
+export function useListNotifications<
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListNotificationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Mark a notification as read
+ */
+export const getMarkNotificationReadUrl = (id: number) => {
+  return `/api/notifications/${id}/read`;
+};
+
+export const markNotificationRead = async (
+  id: number,
+  options?: RequestInit,
+): Promise<MarkNotificationRead200> => {
+  return customFetch<MarkNotificationRead200>(getMarkNotificationReadUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getMarkNotificationReadMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markNotificationRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["markNotificationRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markNotificationRead>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return markNotificationRead(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkNotificationReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markNotificationRead>>
+>;
+
+export type MarkNotificationReadMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark a notification as read
+ */
+export const useMarkNotificationRead = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markNotificationRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getMarkNotificationReadMutationOptions(options));
+};
+
+/**
+ * @summary Provision an authority account (requires X-Admin-Key)
+ */
+export const getAdminCreateAuthorityUrl = () => {
+  return `/api/admin/authorities`;
+};
+
+export const adminCreateAuthority = async (
+  createAuthorityAdminBody: CreateAuthorityAdminBody,
+  options?: RequestInit,
+): Promise<AdminCreateAuthority201> => {
+  return customFetch<AdminCreateAuthority201>(getAdminCreateAuthorityUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAuthorityAdminBody),
+  });
+};
+
+export const getAdminCreateAuthorityMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateAuthority>>,
+    TError,
+    { data: BodyType<CreateAuthorityAdminBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminCreateAuthority>>,
+  TError,
+  { data: BodyType<CreateAuthorityAdminBody> },
+  TContext
+> => {
+  const mutationKey = ["adminCreateAuthority"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminCreateAuthority>>,
+    { data: BodyType<CreateAuthorityAdminBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminCreateAuthority(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminCreateAuthorityMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminCreateAuthority>>
+>;
+export type AdminCreateAuthorityMutationBody =
+  BodyType<CreateAuthorityAdminBody>;
+export type AdminCreateAuthorityMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Provision an authority account (requires X-Admin-Key)
+ */
+export const useAdminCreateAuthority = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminCreateAuthority>>,
+    TError,
+    { data: BodyType<CreateAuthorityAdminBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminCreateAuthority>>,
+  TError,
+  { data: BodyType<CreateAuthorityAdminBody> },
+  TContext
+> => {
+  return useMutation(getAdminCreateAuthorityMutationOptions(options));
+};
 
 /**
  * @summary Health check
@@ -566,6 +1080,79 @@ export const useDetectIssue = <
 };
 
 /**
+ * @summary Current authenticated user (JWT)
+ */
+export const getGetCurrentUserUrl = () => {
+  return `/api/users/me`;
+};
+
+export const getCurrentUser = async (options?: RequestInit): Promise<User> => {
+  return customFetch<User>(getGetCurrentUserUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentUserQueryKey = () => {
+  return [`/api/users/me`] as const;
+};
+
+export const getGetCurrentUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({
+    signal,
+  }) => getCurrentUser({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCurrentUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentUser>>
+>;
+export type GetCurrentUserQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Current authenticated user (JWT)
+ */
+
+export function useGetCurrentUser<
+  TData = Awaited<ReturnType<typeof getCurrentUser>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentUser>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCurrentUserQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Register a new user
  */
 export const getCreateUserUrl = () => {
@@ -720,6 +1307,93 @@ export function useGetUser<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetUserQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List issues reported by a user
+ */
+export const getGetUserIssuesUrl = (id: number) => {
+  return `/api/users/${id}/issues`;
+};
+
+export const getUserIssues = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Issue[]> => {
+  return customFetch<Issue[]>(getGetUserIssuesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUserIssuesQueryKey = (id: number) => {
+  return [`/api/users/${id}/issues`] as const;
+};
+
+export const getGetUserIssuesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserIssues>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserIssues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserIssuesQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserIssues>>> = ({
+    signal,
+  }) => getUserIssues(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserIssues>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUserIssuesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserIssues>>
+>;
+export type GetUserIssuesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List issues reported by a user
+ */
+
+export function useGetUserIssues<
+  TData = Awaited<ReturnType<typeof getUserIssues>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUserIssues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserIssuesQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -1080,6 +1754,109 @@ export const useWithdrawRewards = <
 > => {
   return useMutation(getWithdrawRewardsMutationOptions(options));
 };
+
+/**
+ * @summary Issues assigned to the logged-in authority (JWT)
+ */
+export const getGetAuthorityAssignedIssuesUrl = (
+  params?: GetAuthorityAssignedIssuesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/authorities/assigned?${stringifiedParams}`
+    : `/api/authorities/assigned`;
+};
+
+export const getAuthorityAssignedIssues = async (
+  params?: GetAuthorityAssignedIssuesParams,
+  options?: RequestInit,
+): Promise<Issue[]> => {
+  return customFetch<Issue[]>(getGetAuthorityAssignedIssuesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAuthorityAssignedIssuesQueryKey = (
+  params?: GetAuthorityAssignedIssuesParams,
+) => {
+  return [`/api/authorities/assigned`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAuthorityAssignedIssuesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAuthorityAssignedIssues>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuthorityAssignedIssuesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAuthorityAssignedIssues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAuthorityAssignedIssuesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAuthorityAssignedIssues>>
+  > = ({ signal }) =>
+    getAuthorityAssignedIssues(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAuthorityAssignedIssues>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAuthorityAssignedIssuesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAuthorityAssignedIssues>>
+>;
+export type GetAuthorityAssignedIssuesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Issues assigned to the logged-in authority (JWT)
+ */
+
+export function useGetAuthorityAssignedIssues<
+  TData = Awaited<ReturnType<typeof getAuthorityAssignedIssues>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuthorityAssignedIssuesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAuthorityAssignedIssues>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAuthorityAssignedIssuesQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Authority panel login

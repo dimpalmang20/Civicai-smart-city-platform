@@ -9,11 +9,13 @@ import type { CreateIssueBodyIssueType } from "./createIssueBodyIssueType";
 
 export interface CreateIssueBody {
   userId?: number;
-  issueType: CreateIssueBodyIssueType;
+  issueType?: CreateIssueBodyIssueType;
   description?: string;
   imageUrl?: string;
   latitude: number;
   longitude: number;
+  reporterLatitude?: number;
+  reporterLongitude?: number;
   address: string;
   confidenceScore?: number;
   imageHash: string;

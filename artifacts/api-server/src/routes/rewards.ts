@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { usersTable, rewardsTable } from "@workspace/db";
+import { usersTable, rewardsTable, transactionsTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import {
   GetUserRewardsParams,
@@ -35,6 +35,16 @@ router.post("/withdraw", async (req, res) => {
   const transactionId = `TXN_${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
 
   await db.update(usersTable).set({ points: sql`points - ${points}` }).where(eq(usersTable.id, userId));
+  const [after] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+
+  await db.insert(transactionsTable).values({
+    userId,
+    amount: -points,
+    balanceAfter: after.points,
+    type: "withdrawal",
+    description: `Withdrawal of ${points} pts (₹${amount}) to UPI: ${upiId}`,
+  });
+
   await db.insert(rewardsTable).values({
     userId,
     type: "withdrawn",

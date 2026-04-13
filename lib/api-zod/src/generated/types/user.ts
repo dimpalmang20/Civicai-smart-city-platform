@@ -11,11 +11,15 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  emailVerified?: boolean;
   phone?: string | null;
   role: UserRole;
   points: number;
   badge?: string | null;
   totalReports: number;
   resolvedReports: number;
+  validReports: number;
+  rejectedReports: number;
+  trustScore: number;
   createdAt: Date;
 }

@@ -14,10 +14,18 @@ router.get("/summary", async (req, res) => {
       pending: sql<number>`count(*) filter (where status = 'pending')`,
       inProgress: sql<number>`count(*) filter (where status = 'in_progress')`,
       totalPoints: sql<number>`coalesce(sum(points_awarded), 0)`,
+      flagged: sql<number>`count(*) filter (where verification_status = 'flagged')`,
+      rejected: sql<number>`count(*) filter (where verification_status = 'rejected')`,
+      duplicates: sql<number>`count(*) filter (where is_duplicate = true)`,
     })
     .from(issuesTable);
 
-  const [userCount] = await db.select({ total: count() }).from(usersTable);
+  const [userAgg] = await db
+    .select({
+      total: count(),
+      avgTrust: sql<number>`coalesce(avg(trust_score), 1)`,
+    })
+    .from(usersTable);
 
   const total = Number(totals.total);
   const resolved = Number(totals.resolved);
@@ -28,9 +36,14 @@ router.get("/summary", async (req, res) => {
     resolvedIssues: resolved,
     pendingIssues: Number(totals.pending),
     inProgressIssues: Number(totals.inProgress),
-    totalUsers: Number(userCount.total),
+    totalUsers: Number(userAgg.total),
     totalPointsAwarded: Number(totals.totalPoints),
     resolutionRate,
+    flaggedReports: Number(totals.flagged),
+    rejectedReports: Number(totals.rejected),
+    duplicateReports: Number(totals.duplicates),
+    fakeReports: Number(totals.rejected) + Number(totals.duplicates),
+    avgTrustScore: Number(userAgg.avgTrust),
   });
 });
 
